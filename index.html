@@ -14,7 +14,6 @@
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            /* Changed background color to light blue */
             background-color: #e0f2fe;
         }
         /* Custom scrollbar for better aesthetics */
@@ -87,16 +86,29 @@
         const RSS_PROXY_URL = 'https://api.rss2json.com/v1/api.json?rss_url=';
         const REFRESH_INTERVAL = 60000; // 1 minute
 
-        // Array of curated, reliable news source RSS feeds.
+        // A comprehensive list of international and Indian news sources. Unstable feeds have been replaced.
         const NEWS_SOURCES = [
-            'http://feeds.bbci.co.uk/news/world/rss.xml',
-            'https://feeds.npr.org/1001/rss.xml',
-            'https://www.theguardian.com/world/rss',
-            'https://www.aljazeera.com/xml/rss/all.xml',
-            'https://timesofindia.indiatimes.com/rssfeedstopstories.cms',
-            'https://indianexpress.com/section/india/feed/',
-            'https://www.hindustantimes.com/feeds/rss/india-news/rssfeed.xml',
-            'https://feeds.feedburner.com/ndtvnews-top-stories'
+            // International
+            'http://feeds.reuters.com/Reuters/worldNews', // Reuters (World News feed)
+            'http://feeds.bbci.co.uk/news/world/rss.xml', // BBC
+            'http://rss.cnn.com/rss/cnn_world.rss', // CNN
+            'https://www.aljazeera.com/xml/rss/all.xml', // Al Jazeera
+            'http://hosted.ap.org/lineups/WORLDHEADS-rss_2.0.xml?SITE=AP&SECTION=HOME', // Associated Press (Stable feed)
+            'https://www.theguardian.com/world/rss', // The Guardian
+            'https://news.google.com/rss?hl=en-IN&gl=IN&ceid=IN:en', // Google News (India)
+            'http://feeds.nbcnews.com/nbcnews/public/world', // NBC News
+            // Indian National
+            'https://timesofindia.indiatimes.com/rssfeeds/296589292.cms', // Indiatimes / TOI
+            'https://www.hindustantimes.com/feeds/rss/india-news/rssfeed.xml', // Hindustan Times
+            'https://feeds.feedburner.com/ndtvnews-top-stories', // NDTV
+            'https://www.thehindu.com/feeder/default.rss', // The Hindu
+            'https://www.indiatoday.in/rss/home', // India Today
+            'https://indianexpress.com/section/india/feed/', // The Indian Express (Direct feed)
+            'https://www.news18.com/rss/india.xml', // News18
+            // Business
+            'https://economictimes.indiatimes.com/rssfeedstopstories.cms', // The Economic Times
+            'https://www.livemint.com/rss/news', // Livemint
+            'https://www.moneycontrol.com/rss/latestnews.xml' // Moneycontrol (Latest News feed)
         ];
 
         /**
@@ -190,6 +202,9 @@
                         imageUrl = firstImg.src;
                     }
                 }
+                
+                const pubDate = new Date(article.pubDate);
+                const istDateString = pubDate.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'long' });
 
                 let imageHtml = '';
                 if (imageUrl && typeof imageUrl === 'string' && imageUrl.length > 0) {
@@ -208,8 +223,13 @@
                             <span class="font-semibold text-gray-700">${article.source.split(' - ')[0]}</span>
                             <a href="${article.link}" target="_blank" rel="noopener noreferrer" class="font-semibold text-blue-500 hover:underline">Read More &rarr;</a>
                         </div>
-                         <div class="text-xs font-medium text-blue-600 bg-blue-100 inline-block px-2 py-1 rounded-full mt-2">
-                            <span>${category}</span>
+                         <div class="flex items-center justify-between mt-2">
+                            <div class="text-xs font-medium text-blue-600 bg-blue-100 inline-block px-2 py-1 rounded-full">
+                                <span>${category}</span>
+                            </div>
+                            <div class="text-xs text-gray-500">
+                                <span>${istDateString}</span>
+                            </div>
                          </div>
                     </div>`;
                 
@@ -226,14 +246,16 @@
         function getArticleCategory(article) {
             const title = article.title.toLowerCase();
             const link = article.link.toLowerCase();
+            const source = article.source.toLowerCase();
             const categories = (article.categories || []).map(c => c.toLowerCase());
 
             const check = (keywords) => keywords.some(kw => title.includes(kw) || link.includes(kw) || categories.includes(kw));
 
+            if (check(['kerala', 'malayali', 'onam', 'kochi', 'thiruvananthapuram', 'onmanorama'])) return 'Kerala News';
             if (check(['sport', 'cricket', 'football', 'ipl', 'olympic', 'tennis'])) return 'Sports';
             if (check(['entertainment', 'movie', 'film', 'music', 'bollywood', 'hollywood', 'celebrity'])) return 'Entertainment';
             if (check(['tech', 'gadget', 'ai', 'science', 'crypto', 'smartphone'])) return 'Technology';
-            if (check(['business', 'economy', 'market', 'stock', 'finance'])) return 'Business';
+            if (check(['business', 'economy', 'market', 'stock', 'finance', 'tariff', 'trade war']) || source.includes('mint') || source.includes('economic times') || source.includes('moneycontrol') || source.includes('business standard') || source.includes('profit')) return 'Business';
             
             return 'Global News';
         }
