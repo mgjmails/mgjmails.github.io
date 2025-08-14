@@ -68,7 +68,8 @@
 
         <!-- Category Filters -->
         <div id="category-filters" class="flex flex-wrap justify-center gap-2 mb-8">
-            <button class="category-btn active bg-white text-gray-700 font-semibold py-2 px-4 rounded-full shadow-sm" data-category="General">General News</button>
+            <button class="category-btn active bg-white text-gray-700 font-semibold py-2 px-4 rounded-full shadow-sm" data-category="All">ALL</button>
+            <button class="category-btn bg-white text-gray-700 font-semibold py-2 px-4 rounded-full shadow-sm" data-category="General">General News</button>
             <button class="category-btn bg-white text-gray-700 font-semibold py-2 px-4 rounded-full shadow-sm" data-category="Business">Business</button>
             <button class="category-btn bg-white text-gray-700 font-semibold py-2 px-4 rounded-full shadow-sm" data-category="Sports">Sports</button>
             <button class="category-btn bg-white text-gray-700 font-semibold py-2 px-4 rounded-full shadow-sm" data-category="Lifie">LIFIE</button>
@@ -102,35 +103,22 @@
 
         // --- State Management ---
         let allFetchedArticles = [];
-        let currentCategory = 'General';
+        let currentCategory = 'All';
 
         // --- Configuration ---
         const RSS_PROXY_URL = 'https://api.rss2json.com/v1/api.json?rss_url=';
         const REFRESH_INTERVAL = 60000; // 1 minute
 
-        // A comprehensive list of international and Indian news sources. Unstable feeds have been replaced.
         const NEWS_SOURCES = [
-            // International
-            'http://feeds.reuters.com/reuters/topNews', // Using general top news feed
-            'http://feeds.bbci.co.uk/news/world/rss.xml', 
-            'http://rss.cnn.com/rss/cnn_world.rss', 
-            'https://www.france24.com/en/rss', // Replaced Al Jazeera
-            'https://apnews.com/hub/world-news/rss', // Using modern AP feed
-            'https://www.theguardian.com/world/rss', 
-            'https://news.google.com/rss?hl=en-IN&gl=IN&ceid=IN:en',
-            'http://feeds.nbcnews.com/nbcnews/public/world',
-            // Indian National
-            'https://timesofindia.indiatimes.com/rssfeeds/296589292.cms',
-            'https://www.hindustantimes.com/feeds/rss/india-news/rssfeed.xml',
-            'https://feeds.feedburner.com/ndtvnews-top-stories',
-            'https://www.thehindu.com/feeder/default.rss',
-            'https://www.indiatoday.in/rss/home',
-            'https://indianexpress.com/section/india/feed/',
-            'https://www.news18.com/rss/india.xml',
-            // Business
-            'https://economictimes.indiatimes.com/rssfeedstopstories.cms',
-            'https://www.livemint.com/rss/news',
-            'https://www.business-standard.com/rss/latest.rss' // Replaced Moneycontrol
+            'http://feeds.reuters.com/Reuters/worldNews', 'http://feeds.bbci.co.uk/news/world/rss.xml', 
+            'http://rss.cnn.com/rss/cnn_world.rss', 'https://www.france24.com/en/rss', 
+            'http://hosted.ap.org/lineups/WORLDHEADS-rss_2.0.xml?SITE=AP&SECTION=HOME', 'https://www.theguardian.com/world/rss', 
+            'https://news.google.com/rss?hl=en-IN&gl=IN&ceid=IN:en', 'http://feeds.nbcnews.com/nbcnews/public/world',
+            'https://timesofindia.indiatimes.com/rssfeeds/296589292.cms', 'https://www.hindustantimes.com/feeds/rss/india-news/rssfeed.xml',
+            'https://feeds.feedburner.com/ndtvnews-top-stories', 'https://www.thehindu.com/feeder/default.rss',
+            'https://www.indiatoday.in/rss/home', 'https://indianexpress.com/section/india/feed/',
+            'https://www.news18.com/rss/india.xml', 'https://economictimes.indiatimes.com/rssfeedstopstories.cms',
+            'https://www.livemint.com/rss/news', 'https://feeds.feedburner.com/ndtvprofit-latest'
         ];
 
         /**
@@ -191,11 +179,14 @@
          * Renders news based on the current category without scrolling to the top.
          */
         function renderNews() {
-            const articlesToRender = currentCategory === 'General'
-                ? allFetchedArticles
-                : allFetchedArticles.filter(article => getArticleCategory(article, true) === currentCategory);
+            let articlesToRender;
+            if (currentCategory === 'All') {
+                articlesToRender = allFetchedArticles;
+            } else {
+                articlesToRender = allFetchedArticles.filter(article => getArticleCategory(article, true) === currentCategory);
+            }
 
-            if (articlesToRender.length === 0 && currentCategory !== 'General') {
+            if (articlesToRender.length === 0 && currentCategory !== 'All') {
                  newsFeed.innerHTML = `<div class="text-center text-gray-500 bg-white p-6 rounded-lg shadow-md">No news found for the "${currentCategory}" category today.</div>`;
                  return;
             } else if (allFetchedArticles.length === 0) {
@@ -274,7 +265,7 @@
         }
 
         /**
-         * Determines the category of an article.
+         * Determines the category of an article based on new, specific rules.
          * @param {object} article - The article object.
          * @param {boolean} forFilter - If true, returns a simplified category for tab filtering.
          * @returns {string} The determined category.
@@ -287,27 +278,34 @@
             const categories = (article.categories || []).map(c => c.toLowerCase());
             const check = (keywords) => keywords.some(kw => content.includes(kw) || link.includes(kw) || categories.includes(kw));
             
-            const lifieKeywords = ['entertainment', 'movie', 'film', 'music', 'bollywood', 'hollywood', 'celebrity', 'art', 'book', 'food', 'travel', 'science', 'tech', 'gadget', 'ai', 'crypto', 'smartphone'];
+            const lifieKeywords = ['movie', 'music', 'travel', 'entertainment', 'art', 'painting', 'life', 'food', 'science', 'space', 'ai', 'technology', 'book', 'film', 'bollywood', 'hollywood', 'celebrity', 'gadget', 'crypto', 'smartphone'];
+            const businessKeywords = ['business', 'stock', 'market', 'finance', 'tax', 'investment', 'economy', 'tariff', 'trade war'];
+            const sportsKeywords = ['sport', 'cricket', 'football', 'ipl', 'olympic', 'tennis'];
+            const generalKeywords = ['politics', 'government', 'international relations', 'war', 'election'];
 
+            // This logic determines which TAB the article belongs to.
             if (forFilter) {
-                if (check(['business', 'economy', 'market', 'stock', 'finance', 'tariff', 'trade war'])) return 'Business';
-                if (check(['sport', 'cricket', 'football', 'ipl', 'olympic', 'tennis'])) return 'Sports';
+                if (check(businessKeywords)) return 'Business';
+                if (check(sportsKeywords)) return 'Sports';
                 if (check(lifieKeywords)) return 'Lifie';
+                // Everything else falls under General for filtering purposes.
                 return 'General';
             }
 
+            // This logic determines the LABEL displayed on the article card.
             if (/\bkerala\b/.test(content)) return 'Kerala Related';
             if (/\bindia\b/.test(content)) return 'India Related';
-            if (check(['sport', 'cricket', 'football', 'ipl', 'olympic', 'tennis'])) return 'Sports';
+            if (check(businessKeywords)) return 'Business';
+            if (check(sportsKeywords)) return 'Sports';
             if (check(lifieKeywords)) return 'Lifie';
-            if (check(['business', 'economy', 'market', 'stock', 'finance', 'tariff', 'trade war'])) return 'Business';
+            if (check(generalKeywords)) return 'General News';
             
             return 'News';
         }
 
         function createFallbackIcon() {
             return `<div class="w-24 h-24 bg-gray-200 flex items-center justify-center rounded-md">
-                        <svg class="w-10 h-10 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <svg class="w-10 h-10 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24" stroke-width="1.5" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 18V6.375c0-.621.504-1.125 1.125-1.125H9.75" />
                         </svg>
                     </div>`;
