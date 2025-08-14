@@ -43,6 +43,15 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        /* Styles for active and inactive category tabs */
+        .category-btn {
+            transition: all 0.3s ease;
+        }
+        .category-btn.active {
+            background-color: #007bff;
+            color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
     </style>
 </head>
 <body class="antialiased text-gray-800">
@@ -56,6 +65,14 @@
             <p class="text-gray-600">Today's global headlines, updated every minute.</p>
             <div id="last-updated" class="text-sm text-gray-500 mt-2"></div>
         </header>
+
+        <!-- Category Filters -->
+        <div id="category-filters" class="flex flex-wrap justify-center gap-2 mb-8">
+            <button class="category-btn active bg-white text-gray-700 font-semibold py-2 px-4 rounded-full shadow-sm" data-category="General">General News</button>
+            <button class="category-btn bg-white text-gray-700 font-semibold py-2 px-4 rounded-full shadow-sm" data-category="Business">Business</button>
+            <button class="category-btn bg-white text-gray-700 font-semibold py-2 px-4 rounded-full shadow-sm" data-category="Sports">Sports</button>
+            <button class="category-btn bg-white text-gray-700 font-semibold py-2 px-4 rounded-full shadow-sm" data-category="Lifie">LIFIE</button>
+        </div>
 
         <!-- Loading Spinner -->
         <div id="loader" class="flex justify-center items-center py-10">
@@ -81,6 +98,11 @@
         const newsFeed = document.getElementById('news-feed');
         const loader = document.getElementById('loader');
         const lastUpdatedElement = document.getElementById('last-updated');
+        const categoryFilters = document.getElementById('category-filters');
+
+        // --- State Management ---
+        let allFetchedArticles = [];
+        let currentCategory = 'General';
 
         // --- Configuration ---
         const RSS_PROXY_URL = 'https://api.rss2json.com/v1/api.json?rss_url=';
@@ -89,82 +111,73 @@
         // A comprehensive list of international and Indian news sources. Unstable feeds have been replaced.
         const NEWS_SOURCES = [
             // International
-            'http://feeds.reuters.com/Reuters/worldNews', // Reuters (World News feed)
-            'http://feeds.bbci.co.uk/news/world/rss.xml', // BBC
-            'http://rss.cnn.com/rss/cnn_world.rss', // CNN
-            'https://www.aljazeera.com/xml/rss/all.xml', // Al Jazeera
-            'http://hosted.ap.org/lineups/WORLDHEADS-rss_2.0.xml?SITE=AP&SECTION=HOME', // Associated Press (Stable feed)
-            'https://www.theguardian.com/world/rss', // The Guardian
-            'https://news.google.com/rss?hl=en-IN&gl=IN&ceid=IN:en', // Google News (India)
-            'http://feeds.nbcnews.com/nbcnews/public/world', // NBC News
+            'http://feeds.reuters.com/reuters/topNews', // Using general top news feed
+            'http://feeds.bbci.co.uk/news/world/rss.xml', 
+            'http://rss.cnn.com/rss/cnn_world.rss', 
+            'https://www.france24.com/en/rss', // Replaced Al Jazeera
+            'https://apnews.com/hub/world-news/rss', // Using modern AP feed
+            'https://www.theguardian.com/world/rss', 
+            'https://news.google.com/rss?hl=en-IN&gl=IN&ceid=IN:en',
+            'http://feeds.nbcnews.com/nbcnews/public/world',
             // Indian National
-            'https://timesofindia.indiatimes.com/rssfeeds/296589292.cms', // Indiatimes / TOI
-            'https://www.hindustantimes.com/feeds/rss/india-news/rssfeed.xml', // Hindustan Times
-            'https://feeds.feedburner.com/ndtvnews-top-stories', // NDTV
-            'https://www.thehindu.com/feeder/default.rss', // The Hindu
-            'https://www.indiatoday.in/rss/home', // India Today
-            'https://indianexpress.com/section/india/feed/', // The Indian Express (Direct feed)
-            'https://www.news18.com/rss/india.xml', // News18
+            'https://timesofindia.indiatimes.com/rssfeeds/296589292.cms',
+            'https://www.hindustantimes.com/feeds/rss/india-news/rssfeed.xml',
+            'https://feeds.feedburner.com/ndtvnews-top-stories',
+            'https://www.thehindu.com/feeder/default.rss',
+            'https://www.indiatoday.in/rss/home',
+            'https://indianexpress.com/section/india/feed/',
+            'https://www.news18.com/rss/india.xml',
             // Business
-            'https://economictimes.indiatimes.com/rssfeedstopstories.cms', // The Economic Times
-            'https://www.livemint.com/rss/news', // Livemint
-            'https://www.moneycontrol.com/rss/latestnews.xml' // Moneycontrol (Latest News feed)
+            'https://economictimes.indiatimes.com/rssfeedstopstories.cms',
+            'https://www.livemint.com/rss/news',
+            'https://www.business-standard.com/rss/latest.rss' // Replaced Moneycontrol
         ];
 
         /**
-         * Fetches, filters, and displays news from all sources.
+         * Fetches news and stores it, then triggers a render.
          */
         async function fetchNews() {
-            console.log('Fetching latest news from all sources...');
-            showLoader();
+            console.log('Fetching latest news...');
+            if (allFetchedArticles.length === 0) showLoader();
 
             const fetchPromises = NEWS_SOURCES.map(url => fetch(RSS_PROXY_URL + encodeURIComponent(url)));
 
             try {
                 const results = await Promise.allSettled(fetchPromises);
-                let allArticles = [];
+                let fetchedItems = [];
 
                 for (const result of results) {
-                    if (result.status === 'fulfilled') {
-                        const response = result.value;
-                        if (response.ok) {
-                            const data = await response.json();
-                            if (data.status === 'ok' && data.items) {
-                                const sourceTitle = data.feed.title || 'Unknown Source';
-                                const articlesWithSource = data.items.map(item => ({...item, source: sourceTitle }));
-                                allArticles.push(...articlesWithSource);
-                            }
-                        } else {
-                            console.error(`HTTP error for a feed: ${response.status} from ${response.url}`);
+                    if (result.status === 'fulfilled' && result.value.ok) {
+                        const data = await result.value.json();
+                        if (data.status === 'ok' && data.items) {
+                            const sourceTitle = data.feed.title || 'Unknown Source';
+                            fetchedItems.push(...data.items.map(item => ({...item, source: sourceTitle })));
                         }
                     } else {
-                        console.error('A fetch promise was rejected:', result.reason);
+                        console.error('A fetch promise failed:', result.reason || (result.value && result.value.url));
                     }
                 }
                 
-                allArticles.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+                fetchedItems.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
 
                 const seenTitles = new Set();
-                const uniqueArticles = allArticles.filter(article => {
+                const uniqueArticles = fetchedItems.filter(article => {
                     const normalizedTitle = article.title.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 50);
-                    if (seenTitles.has(normalizedTitle)) {
-                        return false;
-                    } else {
-                        seenTitles.add(normalizedTitle);
-                        return true;
-                    }
+                    if (seenTitles.has(normalizedTitle)) return false;
+                    seenTitles.add(normalizedTitle);
+                    return true;
                 });
 
                 const now = new Date();
                 const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
                 const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
 
-                const filteredArticles = uniqueArticles.filter(article => {
+                allFetchedArticles = uniqueArticles.filter(article => {
                     const articleDate = new Date(article.pubDate);
                     return articleDate >= todayStart && articleDate <= todayEnd;
                 });
 
-                renderNews(filteredArticles);
+                renderNews();
                 updateTimestamp();
 
             } catch (error) {
@@ -175,94 +188,123 @@
         }
 
         /**
-         * Renders the fetched news articles to the page.
-         * @param {Array} articles - An array of news article objects.
+         * Renders news based on the current category without scrolling to the top.
          */
-        function renderNews(articles) {
-            newsFeed.innerHTML = ''; 
+        function renderNews() {
+            const articlesToRender = currentCategory === 'General'
+                ? allFetchedArticles
+                : allFetchedArticles.filter(article => getArticleCategory(article, true) === currentCategory);
 
-            if (articles.length === 0) {
-                newsFeed.innerHTML = `<div class="text-center text-gray-500 bg-white p-6 rounded-lg shadow-md">No news found for today yet. Check back later!</div>`;
-                return;
+            if (articlesToRender.length === 0 && currentCategory !== 'General') {
+                 newsFeed.innerHTML = `<div class="text-center text-gray-500 bg-white p-6 rounded-lg shadow-md">No news found for the "${currentCategory}" category today.</div>`;
+                 return;
+            } else if (allFetchedArticles.length === 0) {
+                 newsFeed.innerHTML = `<div class="text-center text-gray-500 bg-white p-6 rounded-lg shadow-md">No news found for today yet. Check back later!</div>`;
+                 return;
             }
 
-            articles.forEach(article => {
-                const articleElement = document.createElement('article');
-                articleElement.className = 'bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 flex items-start space-x-4';
+            const existingArticleIds = new Set([...newsFeed.children].map(child => child.id));
+            const articlesToRenderIds = new Set(articlesToRender.map(article => article.guid || article.link));
 
-                const description = cleanDescription(article.description);
-                const category = getArticleCategory(article);
-                
-                let imageUrl = article.thumbnail;
-                if (!imageUrl) {
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(article.description, 'text/html');
-                    const firstImg = doc.querySelector('img');
-                    if (firstImg) {
-                        imageUrl = firstImg.src;
-                    }
+            articlesToRender.forEach(article => {
+                const articleId = article.guid || article.link;
+                if (!existingArticleIds.has(articleId)) {
+                    const articleElement = createArticleElement(article);
+                    newsFeed.prepend(articleElement);
                 }
-                
-                const pubDate = new Date(article.pubDate);
-                const istDateString = pubDate.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'long' });
+            });
 
-                let imageHtml = '';
-                if (imageUrl && typeof imageUrl === 'string' && imageUrl.length > 0) {
-                    imageHtml = `<div class="flex-shrink-0"><img src="${imageUrl}" alt="News thumbnail" class="w-24 h-24 object-cover rounded-md" onerror="this.onerror=null; this.parentElement.innerHTML = createFallbackIcon();"></div>`;
-                } else {
-                    imageHtml = `<div class="flex-shrink-0">${createFallbackIcon()}</div>`;
+            [...newsFeed.children].forEach(child => {
+                if (!articlesToRenderIds.has(child.id)) {
+                    child.remove();
                 }
-
-                const contentHtml = `
-                    <div class="flex-grow">
-                        <a href="${article.link}" target="_blank" rel="noopener noreferrer">
-                            <h2 class="text-xl font-bold mb-2 text-gray-800 hover:text-blue-600 transition-colors duration-300">${article.title}</h2>
-                        </a>
-                        <p class="text-gray-600 mb-4">${description}</p>
-                        <div class="flex justify-between items-center text-sm text-gray-500">
-                            <span class="font-semibold text-gray-700">${article.source.split(' - ')[0]}</span>
-                            <a href="${article.link}" target="_blank" rel="noopener noreferrer" class="font-semibold text-blue-500 hover:underline">Read More &rarr;</a>
-                        </div>
-                         <div class="flex items-center justify-between mt-2">
-                            <div class="text-xs font-medium text-blue-600 bg-blue-100 inline-block px-2 py-1 rounded-full">
-                                <span>${category}</span>
-                            </div>
-                            <div class="text-xs text-gray-500">
-                                <span>${istDateString}</span>
-                            </div>
-                         </div>
-                    </div>`;
-                
-                articleElement.innerHTML = imageHtml + contentHtml;
-                newsFeed.appendChild(articleElement);
             });
         }
         
         /**
-         * Determines the category of an article based on its content.
-         * @param {object} article - The article object from the feed.
-         * @returns {string} The determined category.
+         * Creates an HTML element for a single news article.
+         * @param {object} article - The article data.
+         * @returns {HTMLElement} The created article element.
          */
-        function getArticleCategory(article) {
-            const title = article.title.toLowerCase();
-            const link = article.link.toLowerCase();
-            const source = article.source.toLowerCase();
-            const categories = (article.categories || []).map(c => c.toLowerCase());
+        function createArticleElement(article) {
+            const articleElement = document.createElement('article');
+            articleElement.id = article.guid || article.link;
+            articleElement.className = 'bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 flex items-start space-x-4';
 
-            const check = (keywords) => keywords.some(kw => title.includes(kw) || link.includes(kw) || categories.includes(kw));
-
-            if (check(['kerala', 'malayali', 'onam', 'kochi', 'thiruvananthapuram', 'onmanorama'])) return 'Kerala News';
-            if (check(['sport', 'cricket', 'football', 'ipl', 'olympic', 'tennis'])) return 'Sports';
-            if (check(['entertainment', 'movie', 'film', 'music', 'bollywood', 'hollywood', 'celebrity'])) return 'Entertainment';
-            if (check(['tech', 'gadget', 'ai', 'science', 'crypto', 'smartphone'])) return 'Technology';
-            if (check(['business', 'economy', 'market', 'stock', 'finance', 'tariff', 'trade war']) || source.includes('mint') || source.includes('economic times') || source.includes('moneycontrol') || source.includes('business standard') || source.includes('profit')) return 'Business';
+            const description = cleanDescription(article.description);
+            const category = getArticleCategory(article);
             
-            return 'Global News';
+            let imageUrl = article.thumbnail;
+            if (!imageUrl) {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(article.description, 'text/html');
+                const firstImg = doc.querySelector('img');
+                if (firstImg) imageUrl = firstImg.src;
+            }
+            
+            const pubDate = new Date(article.pubDate);
+            const istDateString = pubDate.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'long' });
+
+            let imageHtml = (imageUrl && typeof imageUrl === 'string' && imageUrl.length > 0)
+                ? `<div class="flex-shrink-0"><img src="${imageUrl}" alt="News thumbnail" class="w-24 h-24 object-cover rounded-md" onerror="this.onerror=null; this.parentElement.innerHTML = createFallbackIcon();"></div>`
+                : `<div class="flex-shrink-0">${createFallbackIcon()}</div>`;
+
+            const contentHtml = `
+                <div class="flex-grow">
+                    <a href="${article.link}" target="_blank" rel="noopener noreferrer">
+                        <h2 class="text-xl font-bold mb-2 text-gray-800 hover:text-blue-600 transition-colors duration-300">${article.title}</h2>
+                    </a>
+                    <p class="text-gray-600 mb-4">${description}</p>
+                    <div class="flex justify-between items-center text-sm text-gray-500">
+                        <span class="font-semibold text-gray-700">${article.source.split(' - ')[0]}</span>
+                        <a href="${article.link}" target="_blank" rel="noopener noreferrer" class="font-semibold text-blue-500 hover:underline">Read More &rarr;</a>
+                    </div>
+                     <div class="flex items-center justify-between mt-2">
+                        <div class="text-xs font-medium text-blue-600 bg-blue-100 inline-block px-2 py-1 rounded-full">
+                            <span>${category}</span>
+                        </div>
+                        <div class="text-xs text-gray-500">
+                            <span>${istDateString}</span>
+                        </div>
+                     </div>
+                </div>`;
+            
+            articleElement.innerHTML = imageHtml + contentHtml;
+            return articleElement;
         }
 
         /**
-         * Creates an HTML string for a fallback SVG icon.
+         * Determines the category of an article.
+         * @param {object} article - The article object.
+         * @param {boolean} forFilter - If true, returns a simplified category for tab filtering.
+         * @returns {string} The determined category.
          */
+        function getArticleCategory(article, forFilter = false) {
+            const title = article.title.toLowerCase();
+            const description = cleanDescription(article.description).toLowerCase();
+            const content = title + ' ' + description;
+            const link = article.link.toLowerCase();
+            const categories = (article.categories || []).map(c => c.toLowerCase());
+            const check = (keywords) => keywords.some(kw => content.includes(kw) || link.includes(kw) || categories.includes(kw));
+            
+            const lifieKeywords = ['entertainment', 'movie', 'film', 'music', 'bollywood', 'hollywood', 'celebrity', 'art', 'book', 'food', 'travel', 'science', 'tech', 'gadget', 'ai', 'crypto', 'smartphone'];
+
+            if (forFilter) {
+                if (check(['business', 'economy', 'market', 'stock', 'finance', 'tariff', 'trade war'])) return 'Business';
+                if (check(['sport', 'cricket', 'football', 'ipl', 'olympic', 'tennis'])) return 'Sports';
+                if (check(lifieKeywords)) return 'Lifie';
+                return 'General';
+            }
+
+            if (/\bkerala\b/.test(content)) return 'Kerala Related';
+            if (/\bindia\b/.test(content)) return 'India Related';
+            if (check(['sport', 'cricket', 'football', 'ipl', 'olympic', 'tennis'])) return 'Sports';
+            if (check(lifieKeywords)) return 'Lifie';
+            if (check(['business', 'economy', 'market', 'stock', 'finance', 'tariff', 'trade war'])) return 'Business';
+            
+            return 'News';
+        }
+
         function createFallbackIcon() {
             return `<div class="w-24 h-24 bg-gray-200 flex items-center justify-center rounded-md">
                         <svg class="w-10 h-10 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -271,9 +313,6 @@
                     </div>`;
         }
 
-        /**
-         * Removes HTML tags from the description string.
-         */
         function cleanDescription(htmlString) {
             if (!htmlString) return '';
             const parser = new DOMParser();
@@ -282,31 +321,33 @@
             return text.trim().substring(0, 150) + (text.length > 150 ? '...' : '');
         }
         
-        /**
-         * Updates the "Last Updated" timestamp.
-         */
         function updateTimestamp() {
             lastUpdatedElement.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
         }
 
-        // --- UI Helper Functions ---
         function showLoader() {
             loader.style.display = 'flex';
-            newsFeed.style.display = 'none';
         }
 
         function hideLoader() {
             loader.style.display = 'none';
-            newsFeed.style.display = 'block';
         }
         
-        // --- Initial Load and Interval Setup ---
         function initialize() {
+            categoryFilters.addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON') {
+                    categoryFilters.querySelector('.active').classList.remove('active');
+                    e.target.classList.add('active');
+                    currentCategory = e.target.dataset.category;
+                    newsFeed.innerHTML = ''; 
+                    renderNews();
+                }
+            });
+
             fetchNews();
             setInterval(fetchNews, REFRESH_INTERVAL);
         }
 
-        // Start the application
         initialize();
     </script>
 
