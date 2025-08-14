@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -43,15 +43,6 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        /* Styles for active and inactive category tabs */
-        .category-btn {
-            transition: all 0.3s ease;
-        }
-        .category-btn.active {
-            background-color: #007bff;
-            color: white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
     </style>
 </head>
 <body class="antialiased text-gray-800">
@@ -62,18 +53,9 @@
         <!-- Header Section -->
         <header class="mb-8 text-center">
             <h1 class="text-4xl md:text-5xl font-bold text-gray-900 mb-2">12to12 News Radar</h1>
-            <p class="text-gray-600">Today's global headlines, updated every minute.</p>
+            <p class="text-gray-600">The latest global headlines, updated every minute.</p>
             <div id="last-updated" class="text-sm text-gray-500 mt-2"></div>
         </header>
-
-        <!-- Category Filters -->
-        <div id="category-filters" class="flex flex-wrap justify-center gap-2 mb-8">
-            <button class="category-btn active bg-white text-gray-700 font-semibold py-2 px-4 rounded-full shadow-sm" data-category="All">ALL</button>
-            <button class="category-btn bg-white text-gray-700 font-semibold py-2 px-4 rounded-full shadow-sm" data-category="General">General News</button>
-            <button class="category-btn bg-white text-gray-700 font-semibold py-2 px-4 rounded-full shadow-sm" data-category="Business">Business</button>
-            <button class="category-btn bg-white text-gray-700 font-semibold py-2 px-4 rounded-full shadow-sm" data-category="Sports">Sports</button>
-            <button class="category-btn bg-white text-gray-700 font-semibold py-2 px-4 rounded-full shadow-sm" data-category="Lifie">LIFIE</button>
-        </div>
 
         <!-- Loading Spinner -->
         <div id="loader" class="flex justify-center items-center py-10">
@@ -99,11 +81,9 @@
         const newsFeed = document.getElementById('news-feed');
         const loader = document.getElementById('loader');
         const lastUpdatedElement = document.getElementById('last-updated');
-        const categoryFilters = document.getElementById('category-filters');
 
         // --- State Management ---
         let allFetchedArticles = [];
-        let currentCategory = 'All';
 
         // --- Configuration ---
         const RSS_PROXY_URL = 'https://api.rss2json.com/v1/api.json?rss_url=';
@@ -122,7 +102,7 @@
         ];
 
         /**
-         * Fetches news and stores it, then triggers a render.
+         * Fetches, filters, and displays news from all sources.
          */
         async function fetchNews() {
             console.log('Fetching latest news...');
@@ -156,13 +136,12 @@
                     return true;
                 });
 
-                const now = new Date();
-                const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-                const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+                // --- Updated Filter: Show news from the last 24 hours ---
+                const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
                 allFetchedArticles = uniqueArticles.filter(article => {
                     const articleDate = new Date(article.pubDate);
-                    return articleDate >= todayStart && articleDate <= todayEnd;
+                    return articleDate >= twentyFourHoursAgo;
                 });
 
                 renderNews();
@@ -176,28 +155,18 @@
         }
 
         /**
-         * Renders news based on the current category without scrolling to the top.
+         * Renders news without scrolling to the top.
          */
         function renderNews() {
-            let articlesToRender;
-            if (currentCategory === 'All') {
-                articlesToRender = allFetchedArticles;
-            } else {
-                articlesToRender = allFetchedArticles.filter(article => getArticleCategory(article, true) === currentCategory);
-            }
-
-            if (articlesToRender.length === 0 && currentCategory !== 'All') {
-                 newsFeed.innerHTML = `<div class="text-center text-gray-500 bg-white p-6 rounded-lg shadow-md">No news found for the "${currentCategory}" category today.</div>`;
-                 return;
-            } else if (allFetchedArticles.length === 0) {
-                 newsFeed.innerHTML = `<div class="text-center text-gray-500 bg-white p-6 rounded-lg shadow-md">No news found for today yet. Check back later!</div>`;
+            if (allFetchedArticles.length === 0) {
+                 newsFeed.innerHTML = `<div class="text-center text-gray-500 bg-white p-6 rounded-lg shadow-md">No recent news found. Check back later!</div>`;
                  return;
             }
 
             const existingArticleIds = new Set([...newsFeed.children].map(child => child.id));
-            const articlesToRenderIds = new Set(articlesToRender.map(article => article.guid || article.link));
+            const articlesToRenderIds = new Set(allFetchedArticles.map(article => article.guid || article.link));
 
-            articlesToRender.forEach(article => {
+            allFetchedArticles.forEach(article => {
                 const articleId = article.guid || article.link;
                 if (!existingArticleIds.has(articleId)) {
                     const articleElement = createArticleElement(article);
@@ -265,12 +234,11 @@
         }
 
         /**
-         * Determines the category of an article based on new, specific rules.
+         * Determines the category of an article.
          * @param {object} article - The article object.
-         * @param {boolean} forFilter - If true, returns a simplified category for tab filtering.
          * @returns {string} The determined category.
          */
-        function getArticleCategory(article, forFilter = false) {
+        function getArticleCategory(article) {
             const title = article.title.toLowerCase();
             const description = cleanDescription(article.description).toLowerCase();
             const content = title + ' ' + description;
@@ -286,15 +254,6 @@
             const businessKeywords = ['business', 'stock', 'market', 'finance', 'tax', 'investment', 'economy', 'tariff', 'trade war', 'sensex', 'nifty', 'startup', 'ipo'];
             const sportsKeywords = ['sport', 'cricket', 'football', 'ipl', 'olympic', 'tennis', 'f1', 'hockey', 'athlete', 'match'];
 
-            // This logic determines which TAB the article belongs to.
-            if (forFilter) {
-                if (check(businessKeywords)) return 'Business';
-                if (check(sportsKeywords)) return 'Sports';
-                if (check(lifieKeywords)) return 'Lifie';
-                return 'General';
-            }
-
-            // This logic determines the LABEL displayed on the article card.
             if (/\bkerala\b/i.test(content)) return 'Kerala Related';
             if (/\bindia\b/i.test(content)) return 'India Related';
             if (check(businessKeywords)) return 'Business';
@@ -333,16 +292,6 @@
         }
         
         function initialize() {
-            categoryFilters.addEventListener('click', (e) => {
-                if (e.target.tagName === 'BUTTON') {
-                    categoryFilters.querySelector('.active').classList.remove('active');
-                    e.target.classList.add('active');
-                    currentCategory = e.target.dataset.category;
-                    newsFeed.innerHTML = ''; 
-                    renderNews();
-                }
-            });
-
             fetchNews();
             setInterval(fetchNews, REFRESH_INTERVAL);
         }
