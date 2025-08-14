@@ -53,7 +53,7 @@
         <!-- Header Section -->
         <header class="mb-8 text-center">
             <h1 class="text-4xl md:text-5xl font-bold text-gray-900 mb-2">12to12 News Radar</h1>
-            <p class="text-gray-600">Today's latest headlines, updated every minute.</p>
+            <p class="text-gray-600">The latest global headlines, updated every minute.</p>
             <div id="last-updated" class="text-sm text-gray-500 mt-2"></div>
         </header>
 
@@ -135,6 +135,7 @@
                     }
                 }
                 
+                // Sort all articles by date to ensure newest are first
                 fetchedItems.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
 
                 const seenTitles = new Set();
@@ -145,14 +146,11 @@
                     return true;
                 });
 
-                // --- Corrected Filter: Show news from TODAY only ---
-                const now = new Date();
-                const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0); // Today at 12:00:00 AM
-                const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59); // Today at 11:59:59 PM
+                const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
                 allFetchedArticles = uniqueArticles.filter(article => {
                     const articleDate = new Date(article.pubDate);
-                    return articleDate >= todayStart && articleDate <= todayEnd;
+                    return articleDate >= twentyFourHoursAgo;
                 });
 
                 renderNews();
@@ -170,24 +168,20 @@
          */
         function renderNews() {
             if (allFetchedArticles.length === 0) {
-                 newsFeed.innerHTML = `<div class="text-center text-gray-500 bg-white p-6 rounded-lg shadow-md">No news found for today yet. Check back later!</div>`;
+                 newsFeed.innerHTML = `<div class="text-center text-gray-500 bg-white p-6 rounded-lg shadow-md">No recent news found. Check back later!</div>`;
                  return;
             }
 
             const existingArticleIds = new Set([...newsFeed.children].map(child => child.id));
-            const articlesToRenderIds = new Set(allFetchedArticles.map(article => article.guid || article.link));
-
-            allFetchedArticles.forEach(article => {
+            
+            // --- Corrected Rendering Logic ---
+            // Iterate through the sorted list backwards to prepend correctly.
+            // This ensures the newest article is always at the top of the feed.
+            allFetchedArticles.slice().reverse().forEach(article => {
                 const articleId = article.guid || article.link;
                 if (!existingArticleIds.has(articleId)) {
                     const articleElement = createArticleElement(article);
                     newsFeed.prepend(articleElement);
-                }
-            });
-
-            [...newsFeed.children].forEach(child => {
-                if (!articlesToRenderIds.has(child.id)) {
-                    child.remove();
                 }
             });
         }
