@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -53,7 +53,7 @@
         <!-- Header Section -->
         <header class="mb-8 text-center">
             <h1 class="text-4xl md:text-5xl font-bold text-gray-900 mb-2">12to12 News Radar</h1>
-            <p class="text-gray-600">The latest global headlines, updated every minute.</p>
+            <p class="text-gray-600">Today's latest headlines, updated every minute.</p>
             <div id="last-updated" class="text-sm text-gray-500 mt-2"></div>
         </header>
 
@@ -90,15 +90,24 @@
         const REFRESH_INTERVAL = 60000; // 1 minute
 
         const NEWS_SOURCES = [
-            'http://feeds.reuters.com/Reuters/worldNews', 'http://feeds.bbci.co.uk/news/world/rss.xml', 
-            'http://rss.cnn.com/rss/cnn_world.rss', 'https://www.france24.com/en/rss', 
-            'http://hosted.ap.org/lineups/WORLDHEADS-rss_2.0.xml?SITE=AP&SECTION=HOME', 'https://www.theguardian.com/world/rss', 
-            'https://news.google.com/rss?hl=en-IN&gl=IN&ceid=IN:en', 'http://feeds.nbcnews.com/nbcnews/public/world',
-            'https://timesofindia.indiatimes.com/rssfeeds/296589292.cms', 'https://www.hindustantimes.com/feeds/rss/india-news/rssfeed.xml',
-            'https://feeds.feedburner.com/ndtvnews-top-stories', 'https://www.thehindu.com/feeder/default.rss',
-            'https://www.indiatoday.in/rss/home', 'https://indianexpress.com/section/india/feed/',
-            'https://www.news18.com/rss/india.xml', 'https://economictimes.indiatimes.com/rssfeedstopstories.cms',
-            'https://www.livemint.com/rss/news', 'https://feeds.feedburner.com/ndtvprofit-latest'
+            'http://feeds.reuters.com/reuters/topNews',
+            'http://feeds.bbci.co.uk/news/world/rss.xml', 
+            'http://rss.cnn.com/rss/cnn_world.rss', 
+            'https://www.france24.com/en/rss', 
+            'https://apnews.com/hub/world-news/rss',
+            'https://www.theguardian.com/world/rss', 
+            'https://news.google.com/rss?hl=en-IN&gl=IN&ceid=IN:en', 
+            'http://feeds.nbcnews.com/nbcnews/public/world',
+            'https://timesofindia.indiatimes.com/rssfeeds/296589292.cms', 
+            'https://www.hindustantimes.com/feeds/rss/india-news/rssfeed.xml',
+            'https://feeds.feedburner.com/ndtvnews-top-stories', 
+            'https://www.thehindu.com/feeder/default.rss',
+            'https://www.indiatoday.in/rss/home', 
+            'https://indianexpress.com/section/india/feed/',
+            'https://www.news18.com/rss/india.xml', 
+            'https://economictimes.indiatimes.com/rssfeedstopstories.cms',
+            'https://www.livemint.com/rss/news', 
+            'https://feeds.feedburner.com/ndtvprofit-latest'
         ];
 
         /**
@@ -136,12 +145,14 @@
                     return true;
                 });
 
-                // --- Updated Filter: Show news from the last 24 hours ---
-                const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+                // --- Corrected Filter: Show news from TODAY only ---
+                const now = new Date();
+                const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0); // Today at 12:00:00 AM
+                const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59); // Today at 11:59:59 PM
 
                 allFetchedArticles = uniqueArticles.filter(article => {
                     const articleDate = new Date(article.pubDate);
-                    return articleDate >= twentyFourHoursAgo;
+                    return articleDate >= todayStart && articleDate <= todayEnd;
                 });
 
                 renderNews();
@@ -159,7 +170,7 @@
          */
         function renderNews() {
             if (allFetchedArticles.length === 0) {
-                 newsFeed.innerHTML = `<div class="text-center text-gray-500 bg-white p-6 rounded-lg shadow-md">No recent news found. Check back later!</div>`;
+                 newsFeed.innerHTML = `<div class="text-center text-gray-500 bg-white p-6 rounded-lg shadow-md">No news found for today yet. Check back later!</div>`;
                  return;
             }
 
