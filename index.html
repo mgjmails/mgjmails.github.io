@@ -276,29 +276,30 @@
             const content = title + ' ' + description;
             const link = article.link.toLowerCase();
             const categories = (article.categories || []).map(c => c.toLowerCase());
-            const check = (keywords) => keywords.some(kw => content.includes(kw) || link.includes(kw) || categories.includes(kw));
             
-            const lifieKeywords = ['movie', 'music', 'travel', 'entertainment', 'art', 'painting', 'life', 'food', 'science', 'space', 'ai', 'technology', 'book', 'film', 'bollywood', 'hollywood', 'celebrity', 'gadget', 'crypto', 'smartphone'];
-            const businessKeywords = ['business', 'stock', 'market', 'finance', 'tax', 'investment', 'economy', 'tariff', 'trade war'];
-            const sportsKeywords = ['sport', 'cricket', 'football', 'ipl', 'olympic', 'tennis'];
-            const generalKeywords = ['politics', 'government', 'international relations', 'war', 'election'];
+            const check = (keywords) => {
+                const regex = new RegExp(`\\b(${keywords.join('|')})\\b`, 'i');
+                return regex.test(content) || keywords.some(kw => link.includes(kw) || categories.includes(kw));
+            };
+            
+            const lifieKeywords = ['movie', 'music', 'travel', 'entertainment', 'art', 'painting', 'food', 'science', 'space', 'ai', 'technology', 'film', 'bollywood', 'hollywood', 'celebrity', 'book', 'gadget', 'crypto', 'smartphone', 'review', 'recipe', 'exhibition'];
+            const businessKeywords = ['business', 'stock', 'market', 'finance', 'tax', 'investment', 'economy', 'tariff', 'trade war', 'sensex', 'nifty', 'startup', 'ipo'];
+            const sportsKeywords = ['sport', 'cricket', 'football', 'ipl', 'olympic', 'tennis', 'f1', 'hockey', 'athlete', 'match'];
 
             // This logic determines which TAB the article belongs to.
             if (forFilter) {
                 if (check(businessKeywords)) return 'Business';
                 if (check(sportsKeywords)) return 'Sports';
                 if (check(lifieKeywords)) return 'Lifie';
-                // Everything else falls under General for filtering purposes.
                 return 'General';
             }
 
             // This logic determines the LABEL displayed on the article card.
-            if (/\bkerala\b/.test(content)) return 'Kerala Related';
-            if (/\bindia\b/.test(content)) return 'India Related';
+            if (/\bkerala\b/i.test(content)) return 'Kerala Related';
+            if (/\bindia\b/i.test(content)) return 'India Related';
             if (check(businessKeywords)) return 'Business';
             if (check(sportsKeywords)) return 'Sports';
             if (check(lifieKeywords)) return 'Lifie';
-            if (check(generalKeywords)) return 'General News';
             
             return 'News';
         }
