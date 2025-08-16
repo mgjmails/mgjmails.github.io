@@ -211,17 +211,26 @@
                 }
                 
                 // --- Corrected Rendering Logic ---
-                // Get IDs of articles already on the page
+                // This new logic ensures correct order and prevents page jumps.
                 const existingArticleIds = new Set([...feedElement.children].map(child => child.id));
+                const articlesToRenderIds = new Set(filteredArticles.map(article => article.guid || article.link));
 
-                // Add only new articles to the top of the feed
-                filteredArticles.forEach(article => {
-                    const articleId = article.guid || article.link;
-                    if (!existingArticleIds.has(articleId)) {
-                        const articleElement = createArticleElement(article);
-                        feedElement.insertBefore(articleElement, feedElement.firstChild);
+                // 1. Remove articles that are no longer in the list (e.g., too old or filtered out)
+                [...feedElement.children].forEach(child => {
+                    if (!articlesToRenderIds.has(child.id)) {
+                        child.remove();
                     }
                 });
+
+                // 2. Add new articles to the top, IN THE CORRECT ORDER
+                const articlesToAdd = filteredArticles.filter(article => !existingArticleIds.has(article.guid || article.link));
+
+                // Iterate backwards through the new articles to prepend them correctly (newest first)
+                for (let i = articlesToAdd.length - 1; i >= 0; i--) {
+                    const article = articlesToAdd[i];
+                    const articleElement = createArticleElement(article);
+                    feedElement.insertBefore(articleElement, feedElement.firstChild);
+                }
             };
 
             render(newsFeed, todaysArticles);
