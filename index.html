@@ -198,7 +198,6 @@
                     if (searchTerm) {
                         feedElement.innerHTML = `<div class="text-center text-gray-500 bg-white p-6 rounded-lg shadow-md">No news found matching your search.</div>`;
                     } else {
-                        // Avoid showing this message for an empty yesterday's feed unless it's explicitly shown
                         if(feedElement.id === 'news-feed') {
                            feedElement.innerHTML = `<div class="text-center text-gray-500 bg-white p-6 rounded-lg shadow-md">No news found for today yet.</div>`;
                         }
@@ -237,9 +236,12 @@
             const pubDate = new Date(article.pubDate);
             const istDateString = pubDate.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'long' });
 
+            // --- Updated WhatsApp Share Logic ---
             const customMessage = 'Breaking news updates from top News portals in the world together in one place.';
-            const pageUrl = window.location.href;
-            const shareText = encodeURIComponent(`${customMessage}\n\n${pageUrl}`);
+            const pageUrl = window.location.href; // This gets the URL of your webpage
+            const articleTitle = article.title;
+            const articleLink = article.link;
+            const shareText = encodeURIComponent(`${customMessage}\n\n*${articleTitle}*\n${articleLink}\n\nSee more at: ${pageUrl}`);
             const whatsappUrl = `https://wa.me/?text=${shareText}`;
 
             let imageHtml = (imageUrl && typeof imageUrl === 'string' && imageUrl.length > 0)
